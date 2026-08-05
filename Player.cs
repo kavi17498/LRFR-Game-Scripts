@@ -1,0 +1,202 @@
+using System;
+using UnityEngine;
+
+[RequireComponent(typeof(Rigidbody2D))]
+[RequireComponent(typeof(Animator))]
+public class Player : MonoBehaviour
+{
+    [Header("Movement")]
+    [SerializeField] private float moveSpeed = 5f;
+
+    [Header("Jump")]
+    [SerializeField] private float jumpForce = 10f;
+
+    [Header("Jump Forward Boost")]
+    [SerializeField] private float jumpMoveSpeed = 7f;
+    [SerializeField] private float boostDuration = 0.2f;
+
+    [Header("Swipe Detection")]
+    [SerializeField] private float minSwipeDistance = 50f;
+
+    private Rigidbody2D rb;
+    private Animator anim;
+
+    private bool isGrounded = true;
+
+    private Vector2 startTouchPosition;
+    private bool isSwiping = false;
+
+    private float currentMoveSpeed;
+    private float boostTimer;
+
+    private bool isGameOver = false;
+
+    private void Awake()
+    {
+        rb = GetComponent<Rigidbody2D>();
+        anim = GetComponent<Animator>();
+
+        currentMoveSpeed = moveSpeed;
+    }
+
+    private void FixedUpdate()
+    {
+        // Handle temporary speed boost
+        if (boostTimer > 0)
+        {
+            boostTimer -= Time.fixedDeltaTime;
+        }
+        else
+        {
+            currentMoveSpeed = moveSpeed;
+        }
+
+        // Always move forward
+        rb.linearVelocity = new Vector2(currentMoveSpeed, rb.linearVelocity.y);
+    }
+
+    private void Update()
+    {
+#if UNITY_EDITOR
+
+        if (Input.GetKeyDown(KeyCode.Space) && isGrounded)
+        {
+            Jump();
+        }
+
+        if (Input.GetKeyDown(KeyCode.DownArrow))
+        {
+            TriggerGoDown();
+        }
+
+        if (Input.GetMouseButtonDown(0))
+        {
+            startTouchPosition = Input.mousePosition;
+            isSwiping = true;
+        }
+        else if (Input.GetMouseButtonUp(0) && isSwiping)
+        {
+            AnalyzeGesture(startTouchPosition, Input.mousePosition);
+            isSwiping = false;
+        }
+
+#else
+
+        if (Input.touchCount > 0)
+        {
+            Touch touch = Input.GetTouch(0);
+
+            if (touch.phase == TouchPhase.Began)
+            {
+                startTouchPosition = touch.position;
+                isSwiping = true;
+            }
+            else if (touch.phase == TouchPhase.Ended && isSwiping)
+            {
+                AnalyzeGesture(startTouchPosition, touch.position);
+                isSwiping = false;
+            }
+        }
+
+#endif
+    }
+
+    private void AnalyzeGesture(Vector2 start, Vector2 end)
+    {
+        float verticalDistance = end.y - start.y;
+        float horizontalDistance = end.x - start.x;
+
+        if (Mathf.Abs(verticalDistance) > minSwipeDistance &&
+            Mathf.Abs(verticalDistance) > Mathf.Abs(horizontalDistance))
+        {
+            if (verticalDistance < 0)
+            {
+                TriggerGoDown();
+            }
+            else if (verticalDistance > 0 && isGrounded)
+            {
+                Jump();
+            }
+        }
+        else
+        {
+            if (isGrounded)
+            {
+                Jump();
+            }
+        }
+    }
+
+    private void Jump()
+    {
+        rb.linearVelocity = new Vector2(currentMoveSpeed, jumpForce);
+
+        // Give a temporary forward speed boost
+        currentMoveSpeed = jumpMoveSpeed;
+        boostTimer = boostDuration;
+
+        isGrounded = false;
+    }
+
+    private void TriggerGoDown()
+    {
+        anim.SetTrigger("godown");
+
+        // Optional fast fall:
+        // if (!isGrounded)
+        //     rb.linearVelocity = new Vector2(currentMoveSpeed, -jumpForce);
+    }
+
+    private void OnCollisionEnter2D(Collision2D collision)
+    {
+        if (collision.gameObject.CompareTag("Ground"))
+        {
+            isGrounded = true;
+            Debug.Log("Player is grounded.");
+        }
+
+        if (collision.gameObject.CompareTag("Obstacle"))
+        {
+            Debug.Log("Player hit an obstacle!");
+            GameOver();
+        }
+        
+    }
+    private void OnTriggerEnter2D(Collider2D collision)
+    {
+        if (collision.gameObject.CompareTag("Obstacle2"))
+        {
+            // Need to check if the player is in down animation state
+            if (anim.GetCurrentAnimatorStateInfo(0).IsName("creep"))
+            {
+                Debug.Log("Player is in down animation state and hit Obstacle2, no game over.");
+            }
+            else
+            {
+                Debug.Log("Player hit Obstacle2!");
+                GameOver();
+            }
+        }
+    }
+
+
+    private void GameOver()
+    {
+        if (isGameOver)
+            return;
+        anim.SetTrigger("ishit");
+        isGameOver = true;
+
+        Debug.Log("Game Over!");
+
+        
+
+        currentMoveSpeed = 0f;
+        rb.linearVelocity = Vector2.zero;
+        rb.simulated = false;
+
+        GamePlayManager.Instance.GameOver();
+
+
+    }
+}
