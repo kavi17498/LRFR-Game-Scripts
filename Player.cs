@@ -31,6 +31,14 @@ public class Player : MonoBehaviour
 
     private bool isGameOver = false;
 
+    [SerializeField] private float magnetRadius = 5f;
+    [SerializeField] private float magnetDuration = 5f;
+    [SerializeField] private float magnetScanInterval = 0.15f;
+
+    private bool magnetActive;
+    private float magnetTimer;
+    private float scanTimer;
+
     private void Awake()
     {
         rb = GetComponent<Rigidbody2D>();
@@ -41,6 +49,7 @@ public class Player : MonoBehaviour
 
     private void FixedUpdate()
     {
+        
         // Handle temporary speed boost
         if (boostTimer > 0)
         {
@@ -57,7 +66,11 @@ public class Player : MonoBehaviour
 
     private void Update()
     {
+
+
 #if UNITY_EDITOR
+
+       
 
         if (Input.GetKeyDown(KeyCode.Space) && isGrounded)
         {
@@ -80,6 +93,23 @@ public class Player : MonoBehaviour
             isSwiping = false;
         }
 
+        if (magnetActive)
+        {
+            magnetTimer -= Time.deltaTime;
+            scanTimer -= Time.deltaTime;
+
+            if (scanTimer <= 0f)
+            {
+                ScanForCoins();
+                scanTimer = magnetScanInterval;
+            }
+
+            if (magnetTimer <= 0f)
+            {
+                magnetActive = false;
+            }
+        }
+
 #else
 
         if (Input.touchCount > 0)
@@ -99,6 +129,25 @@ public class Player : MonoBehaviour
         }
 
 #endif
+    }
+    void ScanForCoins()
+    {
+        Collider2D[] hits = Physics2D.OverlapCircleAll(
+            transform.position,
+            magnetRadius);
+
+        foreach (Collider2D hit in hits)
+        {
+            if (hit.CompareTag("Coin"))
+            {
+                CoinPrefab coin = hit.GetComponent<CoinPrefab>();
+
+                if (coin != null)
+                {
+                    coin.StartMagnet(transform);
+                }
+            }
+        }
     }
 
     private void AnalyzeGesture(Vector2 start, Vector2 end)
@@ -160,6 +209,7 @@ public class Player : MonoBehaviour
             Debug.Log("Player hit an obstacle!");
             GameOver();
         }
+
         
     }
     private void OnTriggerEnter2D(Collider2D collision)
@@ -176,6 +226,13 @@ public class Player : MonoBehaviour
                 Debug.Log("Player hit Obstacle2!");
                 GameOver();
             }
+        }
+        if (collision.CompareTag("Magnet"))
+        {
+            magnetActive = true;
+            magnetTimer = magnetDuration;
+
+            collision.gameObject.SetActive(false);
         }
     }
 
