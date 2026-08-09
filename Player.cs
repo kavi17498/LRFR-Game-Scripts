@@ -39,12 +39,25 @@ public class Player : MonoBehaviour
     private float magnetTimer;
     private float scanTimer;
 
+    [Header("Shield")]
+    [SerializeField] private float shieldDuration = 30f;
+    [SerializeField, Range(0f, 1f)] private float shieldOpacity = 0.5f;
+
+    private bool shieldActive;
+    private float shieldTimer;
+
+    private SpriteRenderer spriteRenderer;
+    private Color originalColor;
+
     private void Awake()
     {
         rb = GetComponent<Rigidbody2D>();
         anim = GetComponent<Animator>();
 
         currentMoveSpeed = moveSpeed;
+
+        spriteRenderer = GetComponent<SpriteRenderer>();
+        originalColor = spriteRenderer.color;
     }
 
     private void FixedUpdate()
@@ -107,6 +120,15 @@ public class Player : MonoBehaviour
             if (magnetTimer <= 0f)
             {
                 magnetActive = false;
+            }
+        }
+        if (shieldActive)
+        {
+            shieldTimer -= Time.deltaTime;
+
+            if (shieldTimer <= 0f)
+            {
+                DeactivateShield();
             }
         }
 
@@ -206,6 +228,10 @@ public class Player : MonoBehaviour
 
         if (collision.gameObject.CompareTag("Obstacle"))
         {
+            if (shieldActive)
+            {
+                return;
+            }
             Debug.Log("Player hit an obstacle!");
             GameOver();
         }
@@ -223,6 +249,10 @@ public class Player : MonoBehaviour
             }
             else
             {
+                if (shieldActive)
+                {
+                    return;
+                }
                 Debug.Log("Player hit Obstacle2!");
                 GameOver();
             }
@@ -234,8 +264,30 @@ public class Player : MonoBehaviour
 
             collision.gameObject.SetActive(false);
         }
-    }
+        if (collision.CompareTag("Shield"))
+        {
+            ActivateShield();
 
+            // Optional: destroy the shield pickup
+            Destroy(collision.gameObject);
+        }
+    }
+    private void ActivateShield()
+    {
+        shieldActive = true;
+        shieldTimer = shieldDuration;
+
+        Color color = spriteRenderer.color;
+        color.a = shieldOpacity;
+        spriteRenderer.color = color;
+    }
+    private void DeactivateShield()
+    {
+        shieldActive = false;
+        shieldTimer = 0f;
+
+        spriteRenderer.color = originalColor;
+    }
 
     private void GameOver()
     {
