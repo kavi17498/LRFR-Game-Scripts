@@ -14,6 +14,7 @@ public class GamePlayManager : MonoBehaviour
     public TextMeshProUGUI coinText;
     public TextMeshProUGUI highScore;
     [SerializeField] private TextMeshProUGUI scoreText;
+    [SerializeField] private Player player;
 
     [Header("Game Over Screen UI")]
     [SerializeField] private TextMeshProUGUI gameOverScoreText;
@@ -44,6 +45,16 @@ public class GamePlayManager : MonoBehaviour
         score = 0;
         scoreTimer = 0f;
         scoreText.text = "0";
+
+        if (player == null)
+        {
+            player = FindObjectOfType<Player>();
+        }
+
+        if (player != null)
+        {
+            player.UpdateSpeedForScore(score);
+        }
     }
 
     private void Update()
@@ -57,6 +68,16 @@ public class GamePlayManager : MonoBehaviour
             scoreTimer = 0f;
 
             scoreText.text = score.ToString();
+
+            if (player == null)
+            {
+                player = FindObjectOfType<Player>();
+            }
+
+            if (player != null)
+            {
+                player.UpdateSpeedForScore(score);
+            }
         }
     }
 

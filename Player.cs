@@ -6,7 +6,10 @@ using UnityEngine;
 public class Player : MonoBehaviour
 {
     [Header("Movement")]
-    [SerializeField] private float moveSpeed = 5f;
+    [SerializeField] private float moveSpeed = 3f;
+    [SerializeField] private float speedIncreasePerScore = 0.012f;
+    [SerializeField] private float speedChangeRate = 0.01f;
+    [SerializeField] private float maxMoveSpeed = 7f;
 
     [Header("Jump")]
     [SerializeField] private float jumpForce = 10f;
@@ -28,6 +31,8 @@ public class Player : MonoBehaviour
 
     private float currentMoveSpeed;
     private float boostTimer;
+    private float baseMoveSpeed;
+    private float targetMoveSpeed;
 
     private bool isGameOver = false;
 
@@ -54,7 +59,9 @@ public class Player : MonoBehaviour
         rb = GetComponent<Rigidbody2D>();
         anim = GetComponent<Animator>();
 
-        currentMoveSpeed = moveSpeed;
+        baseMoveSpeed = moveSpeed;
+        targetMoveSpeed = baseMoveSpeed;
+        currentMoveSpeed = targetMoveSpeed;
 
         spriteRenderer = GetComponent<SpriteRenderer>();
         originalColor = spriteRenderer.color;
@@ -62,19 +69,30 @@ public class Player : MonoBehaviour
 
     private void FixedUpdate()
     {
-        
         // Handle temporary speed boost
         if (boostTimer > 0)
         {
             boostTimer -= Time.fixedDeltaTime;
+            float boostedTarget = Mathf.Max(targetMoveSpeed, jumpMoveSpeed);
+            currentMoveSpeed = Mathf.MoveTowards(currentMoveSpeed, boostedTarget, speedChangeRate);
         }
         else
         {
-            currentMoveSpeed = moveSpeed;
+            currentMoveSpeed = Mathf.MoveTowards(currentMoveSpeed, targetMoveSpeed, speedChangeRate);
         }
 
         // Always move forward
         rb.linearVelocity = new Vector2(currentMoveSpeed, rb.linearVelocity.y);
+    }
+
+    public void UpdateSpeedForScore(int score)
+    {
+        targetMoveSpeed = Mathf.Min(baseMoveSpeed + (score * speedIncreasePerScore), maxMoveSpeed);
+
+        if (boostTimer <= 0f)
+        {
+            currentMoveSpeed = targetMoveSpeed;
+        }
     }
 
     private void Update()
@@ -267,9 +285,7 @@ public class Player : MonoBehaviour
         if (collision.CompareTag("Shield"))
         {
             ActivateShield();
-
-            // Optional: destroy the shield pickup
-            Destroy(collision.gameObject);
+            collision.gameObject.SetActive(false);
         }
     }
     private void ActivateShield()
