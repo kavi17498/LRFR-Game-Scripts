@@ -5,6 +5,10 @@ public class HomeUIManager : MonoBehaviour
 {
     public void PlayBtnClciked()
     {
-        SceneManager.LoadScene("Gameplay");
+        AdsManager.Instance.ShowInterstitial(() =>
+        {
+            SceneManager.LoadScene("Gameplay");
+        })
+        ;
     }
 }
