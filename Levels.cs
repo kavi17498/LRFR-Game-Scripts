@@ -18,6 +18,12 @@ public class Levels
     public int starsEarned;       // 0 to 3
     public bool isUnlocked;
 
+    [Header("Star Criteria Overrides (0 = use LevelManager global %)")]
+    [Range(0f, 100f)]
+    public float coinPercentageForTwoStars = 0f;
+    [Range(0f, 100f)]
+    public float rewardPercentageForThreeStars = 0f;
+
     public string GetMissionDescription()
     {
         switch (missionType)

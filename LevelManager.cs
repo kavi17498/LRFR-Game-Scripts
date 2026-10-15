@@ -33,6 +33,15 @@ public class LevelManager : MonoBehaviour
     [Header("Levels Configuration (Defined in Inspector)")]
     public Levels[] levels;
 
+    [Header("Star Criteria Settings (Boot Scene)")]
+    [Tooltip("Percentage of spawned coins required for 2 Stars (e.g. 95 for 95%)")]
+    [Range(0f, 100f)]
+    public float twoStarCoinPercentage = 95f;
+
+    [Tooltip("Percentage of spawned reward objects required for 3 Stars (e.g. 100 for 100%)")]
+    [Range(0f, 100f)]
+    public float threeStarRewardPercentage = 100f;
+
     [Header("Current Level")]
     public int currentLevelIndex = 1;
 
@@ -194,17 +203,33 @@ public class LevelManager : MonoBehaviour
     {
         int stars = 1;
 
-        // 95% spawned coins condition
+        // Determine coin percentage for 2 stars (per-level override or global setting)
+        float coinPct = twoStarCoinPercentage;
+        if (CurrentLevel != null && CurrentLevel.coinPercentageForTwoStars > 0f)
+        {
+            coinPct = CurrentLevel.coinPercentageForTwoStars;
+        }
+        float coinRatioRequired = coinPct > 1f ? coinPct / 100f : coinPct;
+
+        // Check 2 Stars condition (coin percentage)
         bool coinCondition = (TotalCoinsSpawned == 0) ||
-                             (((float)CoinsCollectedThisRun / TotalCoinsSpawned) >= 0.95f);
+                             (((float)CoinsCollectedThisRun / TotalCoinsSpawned) >= coinRatioRequired);
 
         if (coinCondition)
         {
             stars = 2;
 
-            // Collect all spawned reward objects condition
+            // Determine reward percentage for 3 stars (per-level override or global setting)
+            float rewardPct = threeStarRewardPercentage;
+            if (CurrentLevel != null && CurrentLevel.rewardPercentageForThreeStars > 0f)
+            {
+                rewardPct = CurrentLevel.rewardPercentageForThreeStars;
+            }
+            float rewardRatioRequired = rewardPct > 1f ? rewardPct / 100f : rewardPct;
+
+            // Check 3 Stars condition (reward percentage)
             bool rewardCondition = (TotalRewardsSpawned == 0) ||
-                                   (RewardsCollectedThisRun >= TotalRewardsSpawned);
+                                   (((float)RewardsCollectedThisRun / TotalRewardsSpawned) >= rewardRatioRequired);
 
             if (rewardCondition)
             {
