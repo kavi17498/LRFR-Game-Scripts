@@ -39,6 +39,11 @@ public class CoinPrefab : MonoBehaviour
         Debug.Log("Coin collected!");
         GamePlayManager.Instance.addcoins();
 
+        if (LevelManager.Instance != null)
+        {
+            LevelManager.Instance.OnCoinCollected();
+        }
+
         // Reset before returning to pool
         isMagnetized = false;
         magnetTarget = null;

@@ -1,6 +1,7 @@
 using TMPro;
 using UnityEngine;
 using UnityEngine.SceneManagement;
+using UnityEngine.UI;
 
 public class GamePlayManager : MonoBehaviour
 {
@@ -9,20 +10,37 @@ public class GamePlayManager : MonoBehaviour
     [Header("Panels")]
     [SerializeField] private GameObject pausePanel;
     [SerializeField] private GameObject gameOverPanel;
+    [SerializeField] private GameObject levelCompletePanel;
 
     [Header("UI References")]
     public TextMeshProUGUI coinText;
     public TextMeshProUGUI highScore;
     [SerializeField] private TextMeshProUGUI scoreText;
+    [SerializeField] private TextMeshProUGUI missionText;
     [SerializeField] private Player player;
 
     [Header("Game Over Screen UI")]
     [SerializeField] private TextMeshProUGUI gameOverScoreText;
     [SerializeField] private TextMeshProUGUI gameOverHighScoreText;
 
+    [Header("Level Complete Screen UI")]
+    [SerializeField] private TextMeshProUGUI levelCompleteTitleText;
+    [SerializeField] private TextMeshProUGUI levelCompleteMissionText;
+    [SerializeField] private TextMeshProUGUI levelCompleteStarsText;
+    [SerializeField] private TextMeshProUGUI levelCompleteCoinsRatioText;
+    [SerializeField] private TextMeshProUGUI levelCompleteRewardsRatioText;
+    [SerializeField] private Image levelCompleteStarImage;
+    [SerializeField] private Sprite oneStarSprite;
+    [SerializeField] private Sprite twoStarSprite;
+    [SerializeField] private Sprite threeStarSprite;
+
     private int coinCount = 0;
+    private int coinsCollectedThisRun = 0;
     private float scoreTimer;
+    private float runTimer;
     private int score;
+    private bool isGameOver = false;
+    private bool isLevelComplete = false;
 
     private void Awake()
     {
@@ -38,27 +56,46 @@ public class GamePlayManager : MonoBehaviour
 
     private void Start()
     {
-        coinCount = GameManager.Instance.Coins;
-        coinText.text = coinCount.ToString();
-        highScore.text = GameManager.Instance.HighestScore.ToString();
+        coinCount = GameManager.Instance != null ? GameManager.Instance.Coins : 0;
+        if (coinText != null) coinText.text = coinCount.ToString();
+        if (highScore != null && GameManager.Instance != null) highScore.text = GameManager.Instance.HighestScore.ToString();
 
         score = 0;
         scoreTimer = 0f;
-        scoreText.text = "0";
+        runTimer = 0f;
+        coinsCollectedThisRun = 0;
+        isGameOver = false;
+        isLevelComplete = false;
+
+        if (scoreText != null) scoreText.text = "0";
 
         if (player == null)
         {
+#if UNITY_2023_1_OR_NEWER
+            player = FindAnyObjectByType<Player>();
+#else
             player = FindObjectOfType<Player>();
+#endif
         }
 
         if (player != null)
         {
             player.UpdateSpeedForScore(score);
         }
+
+        if (LevelManager.Instance != null)
+        {
+            LevelManager.Instance.ResetRunStats();
+            UpdateMissionUI();
+        }
     }
 
     private void Update()
     {
+        if (isGameOver || isLevelComplete)
+            return;
+
+        runTimer += Time.deltaTime;
         scoreTimer += Time.deltaTime;
 
         // Increase score every 0.1 second
@@ -67,11 +104,15 @@ public class GamePlayManager : MonoBehaviour
             score++;
             scoreTimer = 0f;
 
-            scoreText.text = score.ToString();
+            if (scoreText != null) scoreText.text = score.ToString();
 
             if (player == null)
             {
+#if UNITY_2023_1_OR_NEWER
+                player = FindAnyObjectByType<Player>();
+#else
                 player = FindObjectOfType<Player>();
+#endif
             }
 
             if (player != null)
@@ -79,15 +120,41 @@ public class GamePlayManager : MonoBehaviour
                 player.UpdateSpeedForScore(score);
             }
         }
+
+        // Check if level mission objective is accomplished
+        if (LevelManager.Instance != null)
+        {
+            if (LevelManager.Instance.CheckMissionGoal(runTimer, score, coinsCollectedThisRun))
+            {
+                LevelComplete();
+            }
+        }
+    }
+
+    private void UpdateMissionUI()
+    {
+        if (missionText != null && LevelManager.Instance != null)
+        {
+            var currentLvl = LevelManager.Instance.CurrentLevel;
+            if (currentLvl != null)
+            {
+                missionText.text = $"Level {currentLvl.levelIndex}: {currentLvl.GetMissionDescription()}";
+            }
+        }
     }
 
     public void GameOver()
     {
-        // Update high score in GameManager
-        GameManager.Instance.UpdateHighestScore(score);
+        if (isGameOver || isLevelComplete) return;
 
-        // Update main gameplay UI high score
-        highScore.text = GameManager.Instance.HighestScore.ToString();
+        isGameOver = true;
+
+        // Update high score in GameManager
+        if (GameManager.Instance != null)
+        {
+            GameManager.Instance.UpdateHighestScore(score);
+            if (highScore != null) highScore.text = GameManager.Instance.HighestScore.ToString();
+        }
 
         // Update Game Over panel text components
         if (gameOverScoreText != null)
@@ -95,32 +162,143 @@ public class GamePlayManager : MonoBehaviour
             gameOverScoreText.text = score.ToString();
         }
 
-        if (gameOverHighScoreText != null)
+        if (gameOverHighScoreText != null && GameManager.Instance != null)
         {
             gameOverHighScoreText.text = GameManager.Instance.HighestScore.ToString();
         }
 
         Time.timeScale = 0f;
-        gameOverPanel.SetActive(true);
+        if (gameOverPanel != null)
+        {
+            gameOverPanel.SetActive(true);
+        }
+    }
+
+    public void LevelComplete()
+    {
+        if (isLevelComplete || isGameOver) return;
+
+        isLevelComplete = true;
+
+        if (GameManager.Instance != null)
+        {
+            GameManager.Instance.UpdateHighestScore(score);
+        }
+
+        int stars = 1;
+        if (LevelManager.Instance != null)
+        {
+            stars = LevelManager.Instance.CalculateStars();
+            LevelManager.Instance.CompleteLevel(LevelManager.Instance.currentLevelIndex, stars);
+        }
+
+        Time.timeScale = 0f;
+
+        if (levelCompletePanel != null)
+        {
+            levelCompletePanel.SetActive(true);
+
+            if (levelCompleteTitleText != null && LevelManager.Instance != null)
+            {
+                levelCompleteTitleText.text = $"Level {LevelManager.Instance.currentLevelIndex} Complete!";
+            }
+
+            if (levelCompleteMissionText != null && LevelManager.Instance != null)
+            {
+                var lvl = LevelManager.Instance.CurrentLevel;
+                if (lvl != null)
+                    levelCompleteMissionText.text = lvl.GetMissionDescription();
+            }
+
+            if (levelCompleteStarsText != null)
+            {
+                levelCompleteStarsText.text = $"{stars} / 3 Stars Earned";
+            }
+
+            if (levelCompleteStarImage != null)
+            {
+                switch (stars)
+                {
+                    case 1:
+                        if (oneStarSprite != null) levelCompleteStarImage.sprite = oneStarSprite;
+                        break;
+                    case 2:
+                        if (twoStarSprite != null) levelCompleteStarImage.sprite = twoStarSprite;
+                        break;
+                    case 3:
+                        if (threeStarSprite != null) levelCompleteStarImage.sprite = threeStarSprite;
+                        break;
+                }
+            }
+
+            if (levelCompleteCoinsRatioText != null && LevelManager.Instance != null)
+            {
+                int totalCoins = LevelManager.Instance.TotalCoinsSpawned;
+                int collectedCoins = LevelManager.Instance.CoinsCollectedThisRun;
+                float pct = totalCoins > 0 ? ((float)collectedCoins / totalCoins * 100f) : 100f;
+                levelCompleteCoinsRatioText.text = $"Coins: {collectedCoins}/{totalCoins} ({pct:0}%)";
+            }
+
+            if (levelCompleteRewardsRatioText != null && LevelManager.Instance != null)
+            {
+                int totalRewards = LevelManager.Instance.TotalRewardsSpawned;
+                int collectedRewards = LevelManager.Instance.RewardsCollectedThisRun;
+                levelCompleteRewardsRatioText.text = $"Rewards: {collectedRewards}/{totalRewards}";
+            }
+        }
+        else
+        {
+            // Fallback if dedicated panel is not set up: show game over panel with Level Complete title
+            if (gameOverPanel != null)
+            {
+                gameOverPanel.SetActive(true);
+                if (gameOverScoreText != null)
+                {
+                    gameOverScoreText.text = $"Level Complete!\nStars: {stars}/3\nScore: {score}";
+                }
+            }
+        }
+    }
+
+    public void NextLevel()
+    {
+        Time.timeScale = 1f;
+        if (LevelManager.Instance != null)
+        {
+            int nextIndex = LevelManager.Instance.currentLevelIndex + 1;
+            if (LevelManager.Instance.GetLevel(nextIndex) != null)
+            {
+                LevelManager.Instance.StartLevel(nextIndex);
+                return;
+            }
+        }
+        SceneManager.LoadScene("Levels");
+    }
+
+    public void GoToLevels()
+    {
+        Time.timeScale = 1f;
+        SceneManager.LoadScene("Levels");
     }
 
     public void PauseGame()
     {
         Time.timeScale = 0f;
-        pausePanel.SetActive(true);
+        if (pausePanel != null) pausePanel.SetActive(true);
     }
 
     public void ResumeGame()
     {
         Time.timeScale = 1f;
-        pausePanel.SetActive(false);
+        if (pausePanel != null) pausePanel.SetActive(false);
     }
 
     public void addcoins()
     {
         coinCount++;
-        GameManager.Instance.AddCoin(1);
-        coinText.text = coinCount.ToString();
+        coinsCollectedThisRun++;
+        if (GameManager.Instance != null) GameManager.Instance.AddCoin(1);
+        if (coinText != null) coinText.text = coinCount.ToString();
     }
 
     public void RestartGame()

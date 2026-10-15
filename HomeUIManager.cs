@@ -8,7 +8,11 @@ public class HomeUIManager : MonoBehaviour
         AdsManager.Instance.ShowInterstitial(() =>
         {
             SceneManager.LoadScene("Gameplay");
-        })
-        ;
+        });
+    }
+
+    public void LevelsBtnClicked()
+    {
+        SceneManager.LoadScene("Levels");
     }
 }

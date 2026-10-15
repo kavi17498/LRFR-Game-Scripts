@@ -280,11 +280,22 @@ public class Player : MonoBehaviour
             magnetActive = true;
             magnetTimer = magnetDuration;
 
+            if (LevelManager.Instance != null)
+            {
+                LevelManager.Instance.OnRewardCollected();
+            }
+
             collision.gameObject.SetActive(false);
         }
         if (collision.CompareTag("Shield"))
         {
             ActivateShield();
+
+            if (LevelManager.Instance != null)
+            {
+                LevelManager.Instance.OnRewardCollected();
+            }
+
             collision.gameObject.SetActive(false);
         }
     }

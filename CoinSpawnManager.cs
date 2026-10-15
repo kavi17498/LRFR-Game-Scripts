@@ -77,6 +77,11 @@ public class CoinSpawnManager : MonoBehaviour
                 coin.GetComponent<PooledCoinItem>()
                     .Setup(player, despawnDistance);
 
+                if (LevelManager.Instance != null)
+                {
+                    LevelManager.Instance.OnCoinSpawned();
+                }
+
                 return;
             }
         }

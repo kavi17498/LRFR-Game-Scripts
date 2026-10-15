@@ -145,5 +145,10 @@ public class SpawnManager : MonoBehaviour
         obstacle.SetActive(true);
 
         obstacle.GetComponent<PooledObstacle>().Setup(player, despawnDistance);
+
+        if (LevelManager.Instance != null)
+        {
+            LevelManager.Instance.OnRewardSpawned();
+        }
     }
 }
