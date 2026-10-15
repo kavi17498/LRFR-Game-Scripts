@@ -21,6 +21,8 @@ public class LevelButton : MonoBehaviour
     [SerializeField] private TextMeshProUGUI levelText;
     [SerializeField] private Sprite lockedSprite;
 
+    private bool isSetup = false;
+
     private void Awake()
     {
         if (levelButton == null)
@@ -40,6 +42,38 @@ public class LevelButton : MonoBehaviour
         }
     }
 
+    private void Start()
+    {
+        // Fallback self-init if LevelUIManager hasn't initialized this button yet
+        if (!isSetup)
+        {
+            int idx = GetExtractedLevelIndex();
+            bool unlocked = false;
+            int stars = 0;
+
+            if (LevelManager.Instance != null)
+            {
+                var lvl = LevelManager.Instance.GetLevel(idx);
+                if (lvl != null)
+                {
+                    unlocked = lvl.isUnlocked;
+                    stars = lvl.starsEarned;
+                }
+                else
+                {
+                    unlocked = (idx == 1);
+                }
+            }
+            else
+            {
+                unlocked = PlayerPrefs.GetInt($"Level_{idx}_Unlocked", (idx == 1 ? 1 : 0)) == 1;
+                stars = PlayerPrefs.GetInt($"Level_{idx}_Stars", 0);
+            }
+
+            Setup(idx, unlocked, stars);
+        }
+    }
+
     public int GetExtractedLevelIndex()
     {
         Match match = Regex.Match(gameObject.name, @"\d+");
@@ -52,6 +86,7 @@ public class LevelButton : MonoBehaviour
 
     public void Setup(int index, bool isUnlocked, int starsEarned)
     {
+        isSetup = true;
         levelIndex = index;
 
         if (levelButton == null)
@@ -117,7 +152,7 @@ public class LevelButton : MonoBehaviour
         levelButton.onClick.AddListener(OnButtonClicked);
     }
 
-    private void OnButtonClicked()
+    public void OnButtonClicked()
     {
         if (LevelManager.Instance != null)
         {
@@ -125,16 +160,15 @@ public class LevelButton : MonoBehaviour
         }
         else
         {
+            PlayerPrefs.SetInt("CurrentLevelIndex", levelIndex);
+            PlayerPrefs.Save();
             UnityEngine.SceneManagement.SceneManager.LoadScene("Gameplay");
         }
     }
 
     public void changebg()
     {
-        if (levelButton != null && YelloImg != null)
-        {
-            levelButton.image.sprite = YelloImg;
-            levelButton.image.SetNativeSize();
-        }
+        // If triggered by Inspector persistent OnClick event, start the selected level
+        OnButtonClicked();
     }
 }

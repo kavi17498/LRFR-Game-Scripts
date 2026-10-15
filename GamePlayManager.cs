@@ -41,6 +41,7 @@ public class GamePlayManager : MonoBehaviour
     private int score;
     private bool isGameOver = false;
     private bool isLevelComplete = false;
+    private int activeLevelIndex = 1;
 
     private void Awake()
     {
@@ -86,7 +87,13 @@ public class GamePlayManager : MonoBehaviour
         if (LevelManager.Instance != null)
         {
             LevelManager.Instance.ResetRunStats();
+            activeLevelIndex = LevelManager.Instance.currentLevelIndex;
             UpdateMissionUI();
+            Debug.Log($"[GamePlayManager] Playing Level {activeLevelIndex}: {LevelManager.Instance.CurrentLevel?.GetMissionDescription()}");
+        }
+        else
+        {
+            activeLevelIndex = PlayerPrefs.GetInt("CurrentLevelIndex", 1);
         }
     }
 
@@ -185,11 +192,16 @@ public class GamePlayManager : MonoBehaviour
             GameManager.Instance.UpdateHighestScore(score);
         }
 
+        int completedLevel = activeLevelIndex;
         int stars = 1;
+        int nextLevel = activeLevelIndex + 1;
+
         if (LevelManager.Instance != null)
         {
+            completedLevel = LevelManager.Instance.currentLevelIndex;
             stars = LevelManager.Instance.CalculateStars();
-            LevelManager.Instance.CompleteLevel(LevelManager.Instance.currentLevelIndex, stars);
+            LevelManager.Instance.CompleteLevel(completedLevel, stars);
+            nextLevel = LevelManager.Instance.currentLevelIndex;
         }
 
         Time.timeScale = 0f;
@@ -198,14 +210,14 @@ public class GamePlayManager : MonoBehaviour
         {
             levelCompletePanel.SetActive(true);
 
-            if (levelCompleteTitleText != null && LevelManager.Instance != null)
+            if (levelCompleteTitleText != null)
             {
-                levelCompleteTitleText.text = $"Level {LevelManager.Instance.currentLevelIndex} Complete!";
+                levelCompleteTitleText.text = $"Level {completedLevel} Complete!";
             }
 
             if (levelCompleteMissionText != null && LevelManager.Instance != null)
             {
-                var lvl = LevelManager.Instance.CurrentLevel;
+                var lvl = LevelManager.Instance.GetLevel(completedLevel);
                 if (lvl != null)
                     levelCompleteMissionText.text = lvl.GetMissionDescription();
             }
@@ -248,13 +260,14 @@ public class GamePlayManager : MonoBehaviour
         }
         else
         {
-            // Fallback if dedicated panel is not set up: show game over panel with Level Complete title
+            // Fallback if dedicated panel is not set up in scene:
+            // show gameOverPanel updated with Level Complete info and next level
             if (gameOverPanel != null)
             {
                 gameOverPanel.SetActive(true);
                 if (gameOverScoreText != null)
                 {
-                    gameOverScoreText.text = $"Level Complete!\nStars: {stars}/3\nScore: {score}";
+                    gameOverScoreText.text = $"LEVEL {completedLevel} COMPLETE!\nStars: {stars}/3\nNext: Level {nextLevel}";
                 }
             }
         }
@@ -265,14 +278,10 @@ public class GamePlayManager : MonoBehaviour
         Time.timeScale = 1f;
         if (LevelManager.Instance != null)
         {
-            int nextIndex = LevelManager.Instance.currentLevelIndex + 1;
-            if (LevelManager.Instance.GetLevel(nextIndex) != null)
-            {
-                LevelManager.Instance.StartLevel(nextIndex);
-                return;
-            }
+            LevelManager.Instance.StartLevel(LevelManager.Instance.currentLevelIndex);
+            return;
         }
-        SceneManager.LoadScene("Levels");
+        SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
     }
 
     public void GoToLevels()
