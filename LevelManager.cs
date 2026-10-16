@@ -201,7 +201,7 @@ public class LevelManager : MonoBehaviour
     /// </summary>
     public int CalculateStars()
     {
-        int stars = 1;
+        int stars = 1; // 1 Star for completing the mission
 
         // Determine coin percentage for 2 stars (per-level override or global setting)
         float coinPct = twoStarCoinPercentage;
@@ -211,8 +211,9 @@ public class LevelManager : MonoBehaviour
         }
         float coinRatioRequired = coinPct > 1f ? coinPct / 100f : coinPct;
 
-        // Check 2 Stars condition (coin percentage)
-        bool coinCondition = (TotalCoinsSpawned == 0) ||
+        // Check 2 Stars condition: Must have spawned coins and collected >= required percentage
+        bool coinCondition = TotalCoinsSpawned > 0 &&
+                             CoinsCollectedThisRun > 0 &&
                              (((float)CoinsCollectedThisRun / TotalCoinsSpawned) >= coinRatioRequired);
 
         if (coinCondition)
@@ -227,8 +228,9 @@ public class LevelManager : MonoBehaviour
             }
             float rewardRatioRequired = rewardPct > 1f ? rewardPct / 100f : rewardPct;
 
-            // Check 3 Stars condition (reward percentage)
-            bool rewardCondition = (TotalRewardsSpawned == 0) ||
+            // Check 3 Stars condition: Must have spawned rewards and collected >= required percentage
+            bool rewardCondition = TotalRewardsSpawned > 0 &&
+                                   RewardsCollectedThisRun > 0 &&
                                    (((float)RewardsCollectedThisRun / TotalRewardsSpawned) >= rewardRatioRequired);
 
             if (rewardCondition)
@@ -236,6 +238,9 @@ public class LevelManager : MonoBehaviour
                 stars = 3;
             }
         }
+
+        float coinPctAchieved = TotalCoinsSpawned > 0 ? ((float)CoinsCollectedThisRun / TotalCoinsSpawned * 100f) : 0f;
+        Debug.Log($"[LevelManager] CalculateStars: Coins={CoinsCollectedThisRun}/{TotalCoinsSpawned} ({coinPctAchieved:0}%, req {coinPct:0}%), Rewards={RewardsCollectedThisRun}/{TotalRewardsSpawned} => Awarded {stars} Star(s) this round.");
 
         return stars;
     }

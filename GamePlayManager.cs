@@ -52,6 +52,12 @@ public class GamePlayManager : MonoBehaviour
         else
         {
             Destroy(gameObject);
+            return;
+        }
+
+        if (LevelManager.Instance != null)
+        {
+            LevelManager.Instance.ResetRunStats();
         }
     }
 
