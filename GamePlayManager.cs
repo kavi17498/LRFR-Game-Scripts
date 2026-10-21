@@ -1,3 +1,4 @@
+using System.Collections;
 using TMPro;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -11,6 +12,11 @@ public class GamePlayManager : MonoBehaviour
     [SerializeField] private GameObject pausePanel;
     [SerializeField] private GameObject gameOverPanel;
     [SerializeField] private GameObject levelCompletePanel;
+
+    [Header("Game Over Presentation")]
+    [SerializeField] private float gameOverDelay = 2.0f;
+    [SerializeField] private float gameOverTransitionDuration = 0.5f;
+    private Coroutine gameOverCoroutine;
 
     [Header("UI References")]
     public TextMeshProUGUI coinText;
@@ -63,6 +69,7 @@ public class GamePlayManager : MonoBehaviour
 
     private void Start()
     {
+        Time.timeScale = 1f;
         coinCount = GameManager.Instance != null ? GameManager.Instance.Coins : 0;
         if (coinText != null) coinText.text = coinCount.ToString();
         if (highScore != null && GameManager.Instance != null) highScore.text = GameManager.Instance.HighestScore.ToString();
@@ -169,7 +176,7 @@ public class GamePlayManager : MonoBehaviour
             if (highScore != null) highScore.text = GameManager.Instance.HighestScore.ToString();
         }
 
-        // Update Game Over panel text components
+        // Update Game Over panel text components immediately
         if (gameOverScoreText != null)
         {
             gameOverScoreText.text = score.ToString();
@@ -180,11 +187,60 @@ public class GamePlayManager : MonoBehaviour
             gameOverHighScoreText.text = GameManager.Instance.HighestScore.ToString();
         }
 
-        Time.timeScale = 0f;
-        if (gameOverPanel != null)
+        // Keep 2 seconds delay so the player's hit animation can play, then open Game Over panel with smooth transition
+        if (gameOverCoroutine != null)
         {
-            gameOverPanel.SetActive(true);
+            StopCoroutine(gameOverCoroutine);
         }
+        gameOverCoroutine = StartCoroutine(ShowGameOverPanelWithTransition());
+    }
+
+    private IEnumerator ShowGameOverPanelWithTransition()
+    {
+        // 1. Wait for 2 seconds while the player hit animation plays
+        yield return new WaitForSeconds(gameOverDelay);
+
+        if (gameOverPanel == null)
+            yield break;
+
+        // 2. Prepare smooth UI transition (fade-in + gentle scale-up)
+        CanvasGroup cg = gameOverPanel.GetComponent<CanvasGroup>();
+        if (cg == null)
+        {
+            cg = gameOverPanel.AddComponent<CanvasGroup>();
+        }
+
+        cg.alpha = 0f;
+        cg.interactable = false;
+        cg.blocksRaycasts = false;
+
+        Transform panelTransform = gameOverPanel.transform;
+        Vector3 initialScale = Vector3.one * 0.8f;
+        panelTransform.localScale = initialScale;
+
+        gameOverPanel.SetActive(true);
+
+        float elapsed = 0f;
+        while (elapsed < gameOverTransitionDuration)
+        {
+            elapsed += Time.unscaledDeltaTime;
+            float t = Mathf.Clamp01(elapsed / gameOverTransitionDuration);
+            float smoothT = Mathf.SmoothStep(0f, 1f, t);
+
+            cg.alpha = smoothT;
+            panelTransform.localScale = Vector3.Lerp(initialScale, Vector3.one, smoothT);
+
+            yield return null;
+        }
+
+        // Finalize transition
+        cg.alpha = 1f;
+        panelTransform.localScale = Vector3.one;
+        cg.interactable = true;
+        cg.blocksRaycasts = true;
+
+        // Freeze game time once the Game Over panel is fully presented
+        Time.timeScale = 0f;
     }
 
     public void LevelComplete()
@@ -298,6 +354,8 @@ public class GamePlayManager : MonoBehaviour
 
     public void PauseGame()
     {
+        if (isGameOver || isLevelComplete) return;
+
         Time.timeScale = 0f;
         if (pausePanel != null) pausePanel.SetActive(true);
     }

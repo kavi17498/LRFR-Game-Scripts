@@ -69,6 +69,9 @@ public class Player : MonoBehaviour
 
     private void FixedUpdate()
     {
+        if (isGameOver)
+            return;
+
         // Handle temporary speed boost
         if (boostTimer > 0)
         {
@@ -97,6 +100,8 @@ public class Player : MonoBehaviour
 
     private void Update()
     {
+        if (isGameOver)
+            return;
 
 
 #if UNITY_EDITOR
@@ -328,6 +333,8 @@ public class Player : MonoBehaviour
         
 
         currentMoveSpeed = 0f;
+        targetMoveSpeed = 0f;
+        boostTimer = 0f;
         rb.linearVelocity = Vector2.zero;
         rb.simulated = false;
 
